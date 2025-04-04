@@ -6,23 +6,41 @@ import albumentations as A
 import shutil
 
 # 증강 목록 정의 (유효한 인자만 적용된 최신 버전)
+# 증강 목록 정의 (업데이트된 버전)
 AUGMENTATIONS = {
     "rotate": A.Rotate(limit=25, p=1.0),
     "shear": A.Affine(shear=(-16, 16), p=1.0),
     "vertical-flip": A.VerticalFlip(p=1.0),
     "horizontal-flip": A.HorizontalFlip(p=1.0),
-    "crop": A.RandomCrop(height=200, width=200, p=1.0),
-    "crop-and-pad": A.PadIfNeeded(min_height=256, min_width=256, border_mode=0, p=1.0),
+    
+    # crop은 zoom-in crop 느낌으로 CenterCrop + Resize로 대체
+    "crop": A.Compose([
+        A.CenterCrop(height=150, width=150, p=1.0),
+        A.Resize(height=256, width=256)
+    ]),
+    
+    # crop-and-pad는 reflection padding으로 대체
+    "crop-and-pad": A.PadIfNeeded(min_height=256, min_width=256, border_mode=4, p=1.0),  # REFLECT_101
+    
     "perspective-transform": A.Perspective(scale=(0.05, 0.1), p=1.0),
     "elastic-transformation": A.ElasticTransform(alpha=1, sigma=50, p=1.0),
     "sharpen": A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=1.0),
-    "brighten": A.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.0, p=1.0),
+
+    # brighten은 RandomGamma + ColorJitter로 웜톤 노출 느낌 재현
+    "brighten": A.Compose([
+        A.RandomGamma(gamma_limit=(120, 160), p=1.0),
+        A.ColorJitter(brightness=0.3, contrast=0.1, saturation=0.2, hue=0.05, p=1.0)
+    ]),
+    
     "Gamma-contrast": A.RandomGamma(gamma_limit=(80, 120), p=1.0),
     "invert": A.InvertImg(p=1.0),
     "gaussian-blur": A.GaussianBlur(blur_limit=(3, 7), p=1.0),
     "additive-gaussian-noise": A.GaussNoise(p=1.0),
-    "translate-x": A.Affine(translate_percent={"x": 0.1}, p=1.0),
-    "translate-y": A.Affine(translate_percent={"y": 0.1}, p=1.0),
+    
+    # translate-x/y는 줄단위 왜곡 느낌 → GridDistortion/OpticalDistortion으로 대체
+    "translate-x": A.GridDistortion(num_steps=10, distort_limit=0.2, p=1.0),
+    "translate-y": A.OpticalDistortion(distort_limit=0.5, shift_limit=0.5, p=1.0),
+    
     "coarse-salt": A.CoarseDropout(p=1.0),
     "super-pixel": A.Downscale(p=1.0),
     "emboss": A.Emboss(alpha=(0.2, 0.5), strength=(0.2, 0.7), p=1.0),
